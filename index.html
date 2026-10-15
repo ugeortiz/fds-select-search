@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FDS Search and Selection</title>
+
+  <script>(function(){
+    var S=['light','light-hc','dark','dark-hc'];
+    function apply(){try{
+      var r=document.documentElement;
+      var s=localStorage.getItem('vanilla-skin')||'light';
+      S.forEach(function(c){r.classList.remove(c);});
+      r.classList.add(S.indexOf(s)>-1?s:'light');
+    }catch(e){}}
+    apply();
+    window.addEventListener('pageshow',apply);
+  })()</script>
+  <link rel="stylesheet" href="tokens.css">
+  <link rel="stylesheet" href="tokens-high-contrast.css">
+  <link rel="stylesheet" href="tokens-dark.css">
+  <link rel="stylesheet" href="components.css">
+  <script src="icons.js"></script>
+
+  <style>
+    .showcase { margin: 0 auto; max-width: 1440px; padding: var(--spacing-9) var(--spacing-7); }
+    .showcase h1 { font-size: var(--font-size-md); font-weight: var(--font-weight-bold); margin: 0 0 var(--spacing-3); }
+    .showcase p.lead { color: var(--color-secondary); font-size: var(--font-size-sm); margin: 0 0 var(--spacing-8); max-width: 820px; }
+    .showcase__label { display: block; font-size: 10px; font-weight: var(--font-weight-bold); text-transform: uppercase; letter-spacing: 0.06em; color: var(--color-secondary); margin-bottom: var(--spacing-3); }
+    .showcase__toast { bottom: var(--spacing-7); left: var(--spacing-7); max-width: 520px; position: fixed; width: calc(100% - 2 * var(--spacing-7)); z-index: 1100; }
+    .showcase__scroll { overflow-x: auto; }
+    .showcase__scroll .table { min-width: 760px; }
+    .showcase__pagination { padding: var(--spacing-5) 0; }
+    .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+    /* ── Selection bar ─────────────────────────────────────────────
+       Sits under the toolbar instead of replacing it, so search,
+       filter and New stay available while items are selected. */
+    .selection-bar { display: none; }
+    .selection-bar.is-visible { display: block; }
+    .selection-bar .management-toolbar__bar { flex-wrap: wrap; row-gap: var(--spacing-3); }
+    .selection-bar__count { color: var(--color-dark); font-weight: var(--font-weight-bold); white-space: nowrap; }
+    .selection-bar__hidden { color: var(--color-secondary); white-space: nowrap; }
+    .selection-bar__links { align-items: center; display: inline-flex; flex-wrap: wrap; gap: var(--spacing-2); }
+    .selection-bar__actions { align-items: center; display: inline-flex; gap: var(--spacing-2); margin-left: auto; position: relative; }
+    .selection-bar__more-menu { position: absolute; right: 0; top: calc(100% + var(--spacing-2)); z-index: 20; }
+    .selection-bar__more-menu[hidden] { display: none; }
+    .selection-bar__more-menu .is-mobile-only { display: none; }
+
+    .results-bar { display: none; }
+    .results-bar.is-visible { display: flex; }
+
+    .table__cell--image { width: 72px; }
+    .table__thumb { border-radius: var(--rounded-sm); display: block; height: 40px; width: 40px; }
+    .table__empty td { padding: var(--spacing-9); text-align: center; }
+    .table tbody tr.is-leaving td { opacity: 0.55; }
+
+    .pagination select { font: inherit; padding: var(--spacing-1) var(--spacing-2); }
+
+    @media (max-width: 767px) {
+      .showcase { padding: var(--spacing-7) var(--spacing-5); }
+      .selection-bar__actions .btn--label { display: none; }
+      .selection-bar__more-menu .is-mobile-only { display: flex; }
+      .management-toolbar__bar .btn--hide-sm { display: none; }
+      .pagination { flex-wrap: wrap; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════════════════════════
+     FDS search + selection — working prototype (LPD-109703)
+     The toolbar never switches to a "selected" mode: search, filter
+     and New stay put, and the selection gets its own bar underneath.
+     Selection is a set of ids that survives search, paging and
+     page-size changes. Script at the bottom.
+     ════════════════════════════════════════════════════════════════ -->
+
+<main class="showcase">
+  <h1>Products — search while items are selected</h1>
+  <p class="lead">
+    LPD-109703 — the search no longer disappears when you select items. Select a few products, search for something else and keep selecting: the selection bar tells you how many are selected and how many of them you can't see right now. "Show selected" lists the whole selection on its own, and Delete warns you before touching items that aren't on screen.
+  </p>
+
+  <span class="showcase__label">Products</span>
+
+  <div class="management-toolbar">
+    <div class="management-toolbar__bar">
+      <label class="checkbox" id="js-page-check-wrap">
+        <input type="checkbox" class="checkbox__input" id="js-page-check" aria-label="Select all items on this page">
+        <span class="checkbox__box">
+          <svg class="checkbox__icon checkbox__icon--check"><use href="#check-small"></use></svg>
+          <svg class="checkbox__icon checkbox__icon--hr"><use href="#hr"></use></svg>
+        </span>
+      </label>
+
+      <button class="btn btn--borderless btn--sm btn--hide-sm" type="button">
+        <svg class="lexicon-icon"><use href="#filter"></use></svg>
+        Filter
+        <svg class="lexicon-icon"><use href="#caret-bottom"></use></svg>
+      </button>
+
+      <div class="management-toolbar__search">
+        <div class="search">
+          <input class="input__field search__field" type="search" placeholder="Search by name" id="js-search" aria-label="Search by name">
+          <button class="search__clear" type="button" aria-label="Clear search" id="js-search-clear">
+            <svg class="lexicon-icon"><use href="#times-circle"></use></svg>
+          </button>
+          <button class="search__submit" aria-label="Search" type="button">
+            <svg class="lexicon-icon"><use href="#search"></use></svg>
+          </button>
+        </div>
+      </div>
+
+      <button class="btn btn--primary btn--sm" type="button">
+        New
+      </button>
+    </div>
+  </div>
+
+  <div class="management-toolbar management-toolbar--active selection-bar" id="js-selection-bar" role="region" aria-label="Selection">
+    <div class="management-toolbar__bar">
+      <span class="selection-bar__count" id="js-sel-count"></span>
+      <span class="selection-bar__hidden" id="js-sel-hidden"></span>
+
+      <span class="selection-bar__links">
+        <button class="btn btn--link btn--sm" type="button" id="js-select-results"></button>
+        <button class="btn btn--link btn--sm" type="button" id="js-show-selected"></button>
+        <button class="btn btn--link btn--sm" type="button" id="js-clear-selection">Clear selection</button>
+      </span>
+
+      <span class="selection-bar__actions">
+        <button class="btn btn--borderless btn--sm" type="button" id="js-publish">
+          <svg class="lexicon-icon"><use href="#check-circle"></use></svg>
+          <span class="btn--label">Publish</span>
+        </button>
+        <button class="btn btn--borderless btn--sm" type="button" id="js-delete">
+          <svg class="lexicon-icon"><use href="#trash"></use></svg>
+          <span class="btn--label">Delete</span>
+        </button>
+        <button class="btn btn--borderless btn--sm btn--icon" type="button" id="js-more" aria-label="More actions" aria-haspopup="menu" aria-expanded="false">
+          <svg class="lexicon-icon"><use href="#ellipsis-v"></use></svg>
+        </button>
+        <ul class="dropdown selection-bar__more-menu" id="js-more-menu" role="menu" hidden>
+          <li><button class="dropdown__item is-mobile-only" role="menuitem" type="button" data-action="publish"><span class="dropdown__item-text">Publish</span></button></li>
+          <li><button class="dropdown__item is-mobile-only" role="menuitem" type="button" data-action="delete"><span class="dropdown__item-text">Delete</span></button></li>
+          <li><button class="dropdown__item" role="menuitem" type="button" data-action="export"><span class="dropdown__item-text">Export</span></button></li>
+          <li><button class="dropdown__item" role="menuitem" type="button" data-action="move"><span class="dropdown__item-text">Move to Catalog</span></button></li>
+        </ul>
+      </span>
+    </div>
+  </div>
+
+  <div class="management-toolbar__results results-bar" id="js-results-bar">
+    <span class="management-toolbar__results-text" id="js-results-text"></span>
+    <button class="management-toolbar__results-clear" type="button" id="js-results-clear"></button>
+  </div>
+
+  <div class="showcase__scroll">
+    <table class="table">
+      <thead>
+        <tr>
+          <th class="table__cell--gutter"><span class="sr-only">Select</span></th>
+          <th class="table__cell--image">Image</th>
+          <th>Name</th>
+          <th>Catalog</th>
+          <th>Type</th>
+          <th>Status</th>
+          <th>Quantity</th>
+        </tr>
+      </thead>
+      <tbody id="js-tbody"></tbody>
+    </table>
+  </div>
+
+  <nav class="pagination showcase__pagination" aria-label="Pagination">
+    <span class="pagination__size">
+      <label for="js-delta">Items per page</label>
+      <select id="js-delta">
+        <option value="10">10</option>
+        <option value="20" selected>20</option>
+        <option value="40">40</option>
+      </select>
+    </span>
+    <span class="pagination__summary" id="js-summary"></span>
+    <ul class="pagination__pages" id="js-pages"></ul>
+  </nav>
+</main>
+
+<div class="sr-only" aria-live="polite" id="js-live"></div>
+
+<div class="showcase__toast" id="js-toast" style="display: none">
+  <div class="alert alert--success alert--toast" role="status">
+    <div class="alert__content">
+      <svg class="lexicon-icon"><use href="#check-circle-full"></use></svg>
+      <p class="alert__text" id="js-toast-text"></p>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="js-modal" style="display: none">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="js-modal-title">
+    <div class="modal__header">
+      <h2 class="modal__title" id="js-modal-title"></h2>
+      <button class="btn btn--borderless btn--sm btn--icon modal__close" type="button" aria-label="Close" data-close>
+        <svg class="lexicon-icon"><use href="#times"></use></svg>
+      </button>
+    </div>
+    <div class="modal__body">
+      <p style="margin-top: 0">This can't be undone.</p>
+      <div class="alert alert--warning" id="js-modal-hidden" style="margin-bottom: 0">
+        <div class="alert__content">
+          <svg class="lexicon-icon"><use href="#warning-full"></use></svg>
+          <p class="alert__text" id="js-modal-hidden-text"></p>
+        </div>
+        <div class="alert__actions">
+          <button class="btn btn--secondary btn--sm" type="button" id="js-modal-review">Review selection</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal__footer">
+      <button class="btn btn--secondary" type="button" data-close>Cancel</button>
+      <button class="btn btn--primary btn--danger" type="button" id="js-modal-confirm">Delete</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ────────────────────────────────────────────────────────────
+  // Data — 53 products, like the Commerce sample catalog
+  // ────────────────────────────────────────────────────────────
+  var BASES = ['My AVS sens', 'Brake Fluid', 'Premium Brake Fluid', 'Wear Sensors', 'Brake Pads', 'Premium Brake Pads', 'Brake Rotors', 'Calipers', 'Hoses', 'Timing Belt', 'Master Cylinder', 'Oil Filter', 'Air Filter', 'Spark Plugs', 'Fuel Pump', 'Water Pump', 'Radiator', 'Alternator'];
+  var VARIANTS = ['', ' XL', ' Pro'];
+  var CATALOGS = ['Minium', 'Auto Parts', 'Truck Parts', 'Accessories'];
+  var TYPES = ['Simple', 'Simple', 'Grouped', 'Virtual'];
+  var STATUSES = ['Approved', 'Approved', 'Approved', 'Draft', 'Pending'];
+  var TONES = { Approved: 'success', Draft: 'secondary', Pending: 'warning', Simple: 'info', Grouped: 'warning', Virtual: 'secondary' };
+  var COLORS = [['#e7f0ff', '#2e5aac'], ['#fff4e5', '#b95000'], ['#e9f7ee', '#287d3c'], ['#f4e8ff', '#7a3aa8'], ['#ffe9e9', '#b32a2a']];
+
+  function thumb(letter, i) {
+    var c = COLORS[i % COLORS.length];
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" fill="' + c[0] + '"/>' +
+      '<text x="32" y="42" font-family="Helvetica, Arial, sans-serif" font-size="30" font-weight="700" text-anchor="middle" fill="' + c[1] + '">' + letter + '</text></svg>';
+    return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+  }
+
+  var products = [];
+  for (var v = 0; v < VARIANTS.length && products.length < 53; v++) {
+    for (var b = 0; b < BASES.length && products.length < 53; b++) {
+      var i = products.length;
+      products.push({
+        id: i + 1,
+        name: BASES[b] + VARIANTS[v],
+        catalog: CATALOGS[i % CATALOGS.length],
+        kind: TYPES[i % TYPES.length],
+        status: STATUSES[i % STATUSES.length],
+        qty: (i * 37) % 400,
+        image: thumb(BASES[b].charAt(0), b)
+      });
+    }
+  }
+
+  // ────────────────────────────────────────────────────────────
+  // State
+  //   selected   — ids, independent of what the view shows
+  //   reviewIds  — snapshot taken when "Show selected" opens, so a row
+  //                you deselect there stays in place (dimmed) instead
+  //                of vanishing under the cursor
+  // ────────────────────────────────────────────────────────────
+  var state = { query: '', page: 1, delta: 20, selected: new Set(), reviewIds: null };
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  function esc(s) {
+    return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; });
+  }
+
+  function plural(n, one, many) { return n + ' ' + (n === 1 ? one : many); }
+
+  function matches(p) {
+    return !state.query || p.name.toLowerCase().indexOf(state.query.toLowerCase()) > -1;
+  }
+
+  // Everything the current search (and "Show selected") lets through,
+  // before paging.
+  function results() {
+    return products.filter(function (p) {
+      return (!state.reviewIds || state.reviewIds.has(p.id)) && matches(p);
+    });
+  }
+
+  function pageCount(list) { return Math.max(1, Math.ceil(list.length / state.delta)); }
+
+  function pageItems(list) {
+    var start = (state.page - 1) * state.delta;
+    return list.slice(start, start + state.delta);
+  }
+
+  // ────────────────────────────────────────────────────────────
+  // Render
+  // ────────────────────────────────────────────────────────────
+  function render() {
+    var list = results();
+    state.page = Math.min(state.page, pageCount(list));
+    var visible = pageItems(list);
+
+    renderRows(visible);
+    renderPageCheck(visible);
+    renderSelectionBar(list, visible);
+    renderResultsBar(list);
+    renderPagination(list);
+  }
+
+  function renderRows(visible) {
+    var tbody = $('js-tbody');
+
+    if (!visible.length) {
+      tbody.innerHTML = '<tr class="table__empty"><td colspan="7"><div class="empty-state empty-state--sm">' +
+        '<p class="empty-state__title">No results found</p>' +
+        '<p class="empty-state__text">Try a different search.</p></div></td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = visible.map(function (p) {
+      var on = state.selected.has(p.id);
+      return '<tr class="' + (on ? 'is-selected' : (state.reviewIds ? 'is-leaving' : '')) + '">' +
+        '<td class="table__cell--gutter"><label class="checkbox">' +
+          '<input type="checkbox" class="checkbox__input" data-id="' + p.id + '"' + (on ? ' checked' : '') + ' aria-label="Select ' + esc(p.name) + '">' +
+          '<span class="checkbox__box"><svg class="checkbox__icon checkbox__icon--check"><use href="#check-small"></use></svg></span>' +
+        '</label></td>' +
+        '<td class="table__cell--image"><img class="table__thumb" alt="" src="' + p.image + '"></td>' +
+        '<td><strong>' + esc(p.name) + '</strong></td>' +
+        '<td>' + esc(p.catalog) + '</td>' +
+        '<td><span class="label label--' + TONES[p.kind] + '">' + p.kind + '</span></td>' +
+        '<td><span class="label label--' + TONES[p.status] + '">' + p.status + '</span></td>' +
+        '<td>' + p.qty + '</td>' +
+      '</tr>';
+    }).join('');
+  }
+
+  // The toolbar checkbox stays scoped to the page, like Clay: checked
+  // when the whole page is selected, indeterminate when part of it is.
+  function renderPageCheck(visible) {
+    var onPage = visible.filter(function (p) { return state.selected.has(p.id); }).length;
+    var input = $('js-page-check');
+    var wrap = $('js-page-check-wrap');
+
+    input.checked = !!visible.length && onPage === visible.length;
+    input.indeterminate = onPage > 0 && onPage < visible.length;
+    wrap.classList.toggle('is-indeterminate', input.indeterminate);
+    wrap.classList.toggle('is-disabled', !visible.length);
+    input.disabled = !visible.length;
+  }
+
+  function renderSelectionBar(list, visible) {
+    var total = state.selected.size;
+    var bar = $('js-selection-bar');
+
+    bar.classList.toggle('is-visible', total > 0);
+    if (!total) { return; }
+
+    var visibleIds = new Set(visible.map(function (p) { return p.id; }));
+    var inResults = new Set(list.map(function (p) { return p.id; }));
+    var outsideResults = 0;
+    var otherPages = 0;
+
+    state.selected.forEach(function (id) {
+      if (visibleIds.has(id)) { return; }
+      if (inResults.has(id)) { otherPages++; } else { outsideResults++; }
+    });
+
+    $('js-sel-count').textContent = plural(total, 'item selected', 'items selected');
+
+    var hidden = [];
+    if (outsideResults) { hidden.push(outsideResults + ' outside the search'); }
+    if (otherPages) { hidden.push(otherPages + ' on other pages'); }
+    $('js-sel-hidden').textContent = hidden.length ? '· ' + hidden.join(', ') : '';
+
+    // "Select all" means the current results, and adds to the selection
+    var unselectedResults = list.filter(function (p) { return !state.selected.has(p.id); }).length;
+    var selectResults = $('js-select-results');
+    selectResults.hidden = state.reviewIds !== null || !unselectedResults || (!state.query && list.length === visible.length);
+    selectResults.textContent = state.query
+      ? 'Select all ' + list.length + ' results'
+      : 'Select all ' + list.length + ' items';
+
+    $('js-show-selected').textContent = state.reviewIds ? 'Show all items' : 'Show selected';
+  }
+
+  function renderResultsBar(list) {
+    var bar = $('js-results-bar');
+    var text;
+    var clear;
+
+    if (state.reviewIds) {
+      text = state.query
+        ? list.length + ' of ' + plural(state.reviewIds.size, 'selected item', 'selected items') + ' match "' + state.query + '"'
+        : 'Showing ' + plural(state.reviewIds.size, 'selected item', 'selected items');
+      clear = 'Show all items';
+    }
+    else if (state.query) {
+      text = plural(list.length, 'result', 'results') + ' for "' + state.query + '"';
+      clear = 'Clear search';
+    }
+
+    bar.classList.toggle('is-visible', !!text);
+    if (text) {
+      $('js-results-text').textContent = text;
+      $('js-results-clear').textContent = clear;
+    }
+  }
+
+  function renderPagination(list) {
+    var pages = pageCount(list);
+    var start = list.length ? (state.page - 1) * state.delta + 1 : 0;
+    var end = Math.min(state.page * state.delta, list.length);
+
+    $('js-summary').textContent = 'Showing ' + start + ' to ' + end + ' of ' + list.length + ' entries';
+
+    var html = '<li><button class="pagination__btn" type="button" data-page="' + (state.page - 1) + '" aria-label="Previous page"' + (state.page === 1 ? ' disabled' : '') + '><svg class="lexicon-icon"><use href="#angle-left"></use></svg></button></li>';
+    for (var n = 1; n <= pages; n++) {
+      html += '<li><button class="pagination__btn" type="button" data-page="' + n + '" aria-label="Page ' + n + '"' + (n === state.page ? ' aria-current="page"' : '') + '>' + n + '</button></li>';
+    }
+    html += '<li><button class="pagination__btn" type="button" data-page="' + (state.page + 1) + '" aria-label="Next page"' + (state.page === pages ? ' disabled' : '') + '><svg class="lexicon-icon"><use href="#angle-right"></use></svg></button></li>';
+    $('js-pages').innerHTML = html;
+  }
+
+  // ────────────────────────────────────────────────────────────
+  // Feedback
+  // ────────────────────────────────────────────────────────────
+  var liveTimer;
+  function announce(msg) {
+    clearTimeout(liveTimer);
+    liveTimer = setTimeout(function () { $('js-live').textContent = msg; }, 150);
+  }
+
+  function announceSelection() {
+    announce(state.selected.size
+      ? plural(state.selected.size, 'item selected', 'items selected')
+      : 'Selection cleared');
+  }
+
+  var toastTimer;
+  function toast(msg) {
+    $('js-toast-text').textContent = msg;
+    $('js-toast').style.display = '';
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { $('js-toast').style.display = 'none'; }, 3200);
+  }
+
+  // ────────────────────────────────────────────────────────────
+  // Selection
+  // ────────────────────────────────────────────────────────────
+  // "Show selected" is for reviewing the whole selection, so it sets the
+  // search aside while open (you can still search inside it) and brings
+  // it back when you leave.
+  var savedQuery = '';
+
+  function setQuery(q) {
+    state.query = q;
+    $('js-search').value = q;
+  }
+
+  function setShowSelected(on) {
+    if (on && !state.reviewIds) { savedQuery = state.query; setQuery(''); }
+    else if (!on && state.reviewIds) { setQuery(savedQuery); savedQuery = ''; }
+    state.reviewIds = on ? new Set(state.selected) : null;
+    state.page = 1;
+    render();
+    announce(on ? 'Showing ' + plural(state.reviewIds.size, 'selected item', 'selected items') : 'Showing all items');
+  }
+
+  function clearSelection() {
+    state.selected.clear();
+    if (state.reviewIds) { setShowSelected(false); return announceSelection(); }
+    render();
+    announceSelection();
+  }
+
+  $('js-tbody').addEventListener('change', function (e) {
+    var id = Number(e.target.dataset.id);
+    if (!id) { return; }
+    if (e.target.checked) { state.selected.add(id); } else { state.selected.delete(id); }
+    render();
+    announceSelection();
+  });
+
+  $('js-page-check').addEventListener('change', function () {
+    var visible = pageItems(results());
+    var anyOn = visible.some(function (p) { return state.selected.has(p.id); });
+    visible.forEach(function (p) {
+      if (anyOn) { state.selected.delete(p.id); } else { state.selected.add(p.id); }
+    });
+    render();
+    announceSelection();
+  });
+
+  $('js-select-results').addEventListener('click', function () {
+    results().forEach(function (p) { state.selected.add(p.id); });
+    render();
+    announceSelection();
+  });
+
+  $('js-show-selected').addEventListener('click', function () { setShowSelected(!state.reviewIds); });
+  $('js-clear-selection').addEventListener('click', clearSelection);
+
+  // ────────────────────────────────────────────────────────────
+  // Search, results bar and pagination
+  // ────────────────────────────────────────────────────────────
+  var searchTimer;
+  $('js-search').addEventListener('input', function (e) {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(function () {
+      state.query = e.target.value.trim();
+      state.page = 1;
+      render();
+      announce(plural(results().length, 'result', 'results'));
+    }, 200);
+  });
+
+  function clearSearch() {
+    $('js-search').value = '';
+    state.query = '';
+    state.page = 1;
+    render();
+  }
+
+  $('js-search-clear').addEventListener('click', function () { clearSearch(); $('js-search').focus(); });
+
+  // Clearing the search never touches the selection, and vice versa
+  $('js-results-clear').addEventListener('click', function () {
+    if (state.reviewIds) { setShowSelected(false); } else { clearSearch(); }
+  });
+
+  $('js-pages').addEventListener('click', function (e) {
+    var btn = e.target.closest('[data-page]');
+    if (!btn || btn.disabled) { return; }
+    state.page = Number(btn.dataset.page);
+    render();
+  });
+
+  $('js-delta').addEventListener('change', function (e) {
+    state.delta = Number(e.target.value);
+    state.page = 1;
+    render();
+  });
+
+  // ────────────────────────────────────────────────────────────
+  // Bulk actions — always on the whole selection
+  // ────────────────────────────────────────────────────────────
+  function hiddenSelectedCount() {
+    var visibleIds = new Set(pageItems(results()).map(function (p) { return p.id; }));
+    var n = 0;
+    state.selected.forEach(function (id) { if (!visibleIds.has(id)) { n++; } });
+    return n;
+  }
+
+  function publish() {
+    products.forEach(function (p) { if (state.selected.has(p.id)) { p.status = 'Approved'; } });
+    toast(plural(state.selected.size, 'product', 'products') + ' published.');
+    render();
+  }
+
+  var lastFocus;
+  function openDelete() {
+    var total = state.selected.size;
+    var hidden = hiddenSelectedCount();
+
+    $('js-modal-title').textContent = 'Delete ' + plural(total, 'product', 'products') + '?';
+    $('js-modal-confirm').textContent = 'Delete ' + plural(total, 'product', 'products');
+    $('js-modal-hidden').style.display = hidden ? '' : 'none';
+    $('js-modal-hidden-text').textContent = hidden === total
+      ? (total === 1 ? 'This product isn\'t' : 'None of these products are') + ' visible right now.'
+      : hidden + ' of them ' + (hidden === 1 ? 'isn\'t' : 'aren\'t') + ' visible right now.';
+
+    lastFocus = document.activeElement;
+    $('js-modal').style.display = '';
+    $('js-modal-confirm').focus();
+  }
+
+  function closeModal() {
+    $('js-modal').style.display = 'none';
+    if (lastFocus) { lastFocus.focus(); }
+  }
+
+  $('js-publish').addEventListener('click', publish);
+  $('js-delete').addEventListener('click', openDelete);
+
+  $('js-modal').addEventListener('click', function (e) {
+    if (e.target === e.currentTarget || e.target.closest('[data-close]')) { closeModal(); }
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') { return; }
+    if ($('js-modal').style.display === '') { closeModal(); }
+    if (!$('js-more-menu').hidden) { toggleMore(false); $('js-more').focus(); }
+  });
+
+  $('js-modal-review').addEventListener('click', function () {
+    closeModal();
+    setShowSelected(true);
+  });
+
+  $('js-modal-confirm').addEventListener('click', function () {
+    var n = state.selected.size;
+    products = products.filter(function (p) { return !state.selected.has(p.id); });
+    state.selected.clear();
+    if (state.reviewIds) { setShowSelected(false); }
+    closeModal();
+    render();
+    toast(plural(n, 'product', 'products') + ' deleted.');
+    $('js-search').focus();
+  });
+
+  function toggleMore(open) {
+    $('js-more-menu').hidden = !open;
+    $('js-more').setAttribute('aria-expanded', String(open));
+  }
+
+  $('js-more').addEventListener('click', function (e) {
+    e.stopPropagation();
+    toggleMore($('js-more-menu').hidden);
+  });
+
+  $('js-more-menu').addEventListener('click', function (e) {
+    var item = e.target.closest('[data-action]');
+    if (!item) { return; }
+    toggleMore(false);
+    var action = item.dataset.action;
+    if (action === 'publish') { publish(); }
+    else if (action === 'delete') { openDelete(); }
+    else { toast((action === 'export' ? 'Exported ' : 'Moved ') + plural(state.selected.size, 'product', 'products') + '.'); }
+  });
+
+  document.addEventListener('click', function () { toggleMore(false); });
+
+  render();
+})();
+</script>
+</body>
+</html>
