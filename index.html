@@ -124,7 +124,6 @@
       <span class="selection-bar__hidden" id="js-sel-hidden"></span>
 
       <span class="selection-bar__links">
-        <button class="btn btn--link btn--sm" type="button" id="js-select-results"></button>
         <button class="btn btn--link btn--sm" type="button" id="js-show-selected"></button>
         <button class="btn btn--link btn--sm" type="button" id="js-clear-selection">Clear selection</button>
       </span>
@@ -379,14 +378,6 @@
     if (otherPages) { hidden.push(otherPages + ' on other pages'); }
     $('js-sel-hidden').textContent = hidden.length ? '· ' + hidden.join(', ') : '';
 
-    // "Select all" means the current results, and adds to the selection
-    var unselectedResults = list.filter(function (p) { return !state.selected.has(p.id); }).length;
-    var selectResults = $('js-select-results');
-    selectResults.hidden = state.reviewIds !== null || !unselectedResults || (!state.query && list.length === visible.length);
-    selectResults.textContent = state.query
-      ? 'Select all ' + list.length + ' results'
-      : 'Select all ' + list.length + ' items';
-
     $('js-show-selected').textContent = state.reviewIds ? 'Show all items' : 'Show selected';
   }
 
@@ -494,12 +485,6 @@
     visible.forEach(function (p) {
       if (anyOn) { state.selected.delete(p.id); } else { state.selected.add(p.id); }
     });
-    render();
-    announceSelection();
-  });
-
-  $('js-select-results').addEventListener('click', function () {
-    results().forEach(function (p) { state.selected.add(p.id); });
     render();
     announceSelection();
   });
