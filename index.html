@@ -31,8 +31,6 @@
     .showcase__scroll { overflow-x: auto; }
     .showcase__scroll .table { min-width: 760px; }
     .showcase__pagination { padding: var(--spacing-5) 0; }
-    /* The kit's clear button replaces the browser's own one */
-    .search__field::-webkit-search-cancel-button { -webkit-appearance: none; display: none; }
     .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
     /* ── Selection bar ─────────────────────────────────────────────
@@ -105,9 +103,6 @@
       <div class="management-toolbar__search">
         <div class="search">
           <input class="input__field search__field" type="search" placeholder="Search by name" id="js-search" aria-label="Search by name">
-          <button class="search__clear" type="button" aria-label="Clear search" id="js-search-clear">
-            <svg class="lexicon-icon"><use href="#times-circle"></use></svg>
-          </button>
           <button class="search__submit" aria-label="Search" type="button">
             <svg class="lexicon-icon"><use href="#search"></use></svg>
           </button>
@@ -515,7 +510,6 @@
     render();
   }
 
-  $('js-search-clear').addEventListener('click', function () { clearSearch(); $('js-search').focus(); });
 
   // Clearing the search never touches the selection, and vice versa
   $('js-results-clear').addEventListener('click', function () {
