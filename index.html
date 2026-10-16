@@ -31,6 +31,8 @@
     .showcase__scroll { overflow-x: auto; }
     .showcase__scroll .table { min-width: 760px; }
     .showcase__pagination { padding: var(--spacing-5) 0; }
+    /* The kit's clear button replaces the browser's own one */
+    .search__field::-webkit-search-cancel-button { -webkit-appearance: none; display: none; }
     .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
     /* ── Selection bar ─────────────────────────────────────────────
