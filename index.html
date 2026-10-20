@@ -29,7 +29,7 @@
     .showcase__label { display: block; font-size: 10px; font-weight: var(--font-weight-bold); text-transform: uppercase; letter-spacing: 0.06em; color: var(--color-secondary); margin-bottom: var(--spacing-3); }
     .showcase__toast { bottom: var(--spacing-7); left: var(--spacing-7); max-width: 520px; position: fixed; width: calc(100% - 2 * var(--spacing-7)); z-index: 1100; }
     .showcase__scroll { overflow-x: auto; }
-    .showcase__scroll .table { min-width: 760px; }
+    .showcase__scroll .table { min-width: 900px; }
     .showcase__pagination { padding: var(--spacing-5) 0; }
     .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
@@ -47,8 +47,45 @@
     .selection-bar__more-menu[hidden] { display: none; }
     .selection-bar__more-menu .is-mobile-only { display: none; }
 
-    .results-bar { display: none; }
+    /* ── Results bar ───────────────────────────────────────────────
+       Same anatomy as the FDS ResultsBar: count, one chip for the
+       search, one per active filter, and Clear on the right. */
+    .results-bar { display: none; background: var(--color-white); border-bottom: 1px solid var(--color-secondary-l3); gap: var(--spacing-5); }
     .results-bar.is-visible { display: flex; }
+    .results-bar__chips { align-items: center; display: flex; flex-wrap: wrap; gap: var(--spacing-3); min-width: 0; }
+    .results-bar__count { color: var(--color-dark); white-space: nowrap; }
+    .results-bar .management-toolbar__results-clear { color: var(--color-primary); }
+
+    .chip { align-items: center; background: var(--color-white); border: 1px solid var(--color-secondary-l2); border-radius: var(--rounded-sm); color: var(--color-secondary); display: inline-flex; font-size: var(--font-size-sm); height: 28px; max-width: 360px; }
+    .chip.is-open { border-color: var(--color-primary); box-shadow: var(--focus-ring); }
+    .chip__main { align-items: center; appearance: none; background: none; border: 0; color: inherit; cursor: pointer; display: inline-flex; font: inherit; gap: var(--spacing-2); height: 100%; min-width: 0; padding: 0 var(--spacing-2) 0 var(--spacing-3); }
+    .chip__main:disabled { cursor: default; }
+    .chip__text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .chip__text strong { color: var(--color-dark); }
+    .chip__more { background: var(--color-light); border-radius: var(--rounded-sm); color: var(--color-dark); font-size: var(--font-size-xs); font-weight: var(--font-weight-bold); margin-right: var(--spacing-1); padding: 0 var(--spacing-2); }
+    .chip__close { align-items: center; appearance: none; background: none; border: 0; border-left: 1px solid var(--color-secondary-l3); color: inherit; cursor: pointer; display: inline-flex; height: 100%; justify-content: center; width: 28px; }
+    .chip__close:hover, .chip__main:hover:not(:disabled) { color: var(--color-dark); }
+    .chip--selected { border-color: var(--color-primary-l1); color: var(--color-primary); }
+
+    /* ── Filter menu ───────────────────────────────────────────────
+       One floating dropdown for the toolbar Filter button and for
+       editing a chip: list of filters → one filter's panel. */
+    .filter-menu { max-height: min(560px, calc(100vh - 32px)); overflow-y: auto; padding: 0; position: fixed; width: 300px; z-index: 900; }
+    .filter-menu[hidden] { display: none; }
+    .filter-menu__header { align-items: center; color: var(--color-dark); display: flex; font-size: var(--font-size-sm); font-weight: var(--font-weight-bold); gap: var(--spacing-2); padding: var(--spacing-4) var(--spacing-5) var(--spacing-2); text-transform: uppercase; letter-spacing: 0.04em; }
+    .filter-menu__section { padding: var(--spacing-3) var(--spacing-5); }
+    .filter-menu .input__field { height: 32px; font-size: var(--font-size-sm); padding: 0 var(--spacing-4); }
+    .filter-menu__list { list-style: none; margin: 0; padding: var(--spacing-2) 0; }
+    .filter-menu__option { display: flex; padding: var(--spacing-2) var(--spacing-5); }
+    .filter-menu__option .checkbox, .filter-menu__option .radio { width: 100%; }
+    .filter-menu__caption { color: var(--color-secondary); font-size: var(--font-size-sm); padding: var(--spacing-3) var(--spacing-5); }
+    .filter-menu__row { align-items: center; display: flex; justify-content: space-between; }
+    .filter-menu__chosen { display: flex; flex-wrap: wrap; gap: var(--spacing-2); }
+    .filter-menu__field { display: flex; flex-direction: column; gap: var(--spacing-2); margin-bottom: var(--spacing-4); }
+    .filter-menu__field label { color: var(--color-dark); font-size: var(--font-size-sm); font-weight: var(--font-weight-bold); }
+    .filter-menu__error { align-items: center; color: var(--color-danger); display: flex; font-size: var(--font-size-sm); gap: var(--spacing-2); }
+    .filter-menu__footer { border-top: 1px solid var(--color-secondary-l3); padding: var(--spacing-4) var(--spacing-5); }
+    .filter-menu__divider { background: var(--color-secondary-l3); height: 1px; }
 
     .table__cell--image { width: 72px; }
     .table__thumb { border-radius: var(--rounded-sm); display: block; height: 40px; width: 40px; }
@@ -61,7 +98,8 @@
       .showcase { padding: var(--spacing-7) var(--spacing-5); }
       .selection-bar__actions .btn--label { display: none; }
       .selection-bar__more-menu .is-mobile-only { display: flex; }
-      .management-toolbar__bar .btn--hide-sm { display: none; }
+      .management-toolbar__bar .btn--hide-sm .btn--label { display: none; }
+      .results-bar { flex-wrap: wrap; }
       .pagination { flex-wrap: wrap; }
     }
   </style>
@@ -72,14 +110,15 @@
      FDS search + selection — working prototype (LPD-109703)
      The toolbar never switches to a "selected" mode: search, filter
      and New stay put, and the selection gets its own bar underneath.
-     Selection is a set of ids that survives search, paging and
-     page-size changes. Script at the bottom.
+     Selection is a set of ids that survives search, filters, paging
+     and page-size changes. Filtering mirrors the FDS: Filter menu →
+     one filter's panel → chip in the results bar. Script at the bottom.
      ════════════════════════════════════════════════════════════════ -->
 
 <main class="showcase">
-  <h1>Products — search while items are selected</h1>
+  <h1>Products — search and filter while items are selected</h1>
   <p class="lead">
-    LPD-109703 — the search no longer disappears when you select items. Select a few products, search for something else and keep selecting: the selection bar tells you how many are selected and how many of them you can't see right now. "Show selected" lists the whole selection on its own, and Delete warns you before touching items that aren't on screen.
+    LPD-109703 — the search and the filters no longer disappear when you select items. Select a few products, search or filter for something else and keep selecting: the selection bar tells you how many are selected and how many of them you can't see right now. "Show selected" lists the whole selection on its own, and Delete warns you before touching items that aren't on screen.
   </p>
 
   <span class="showcase__label">Products</span>
@@ -94,15 +133,15 @@
         </span>
       </label>
 
-      <button class="btn btn--borderless btn--sm btn--hide-sm" type="button">
+      <button class="btn btn--borderless btn--sm btn--hide-sm" type="button" id="js-filter-btn" aria-haspopup="true" aria-expanded="false">
         <svg class="lexicon-icon"><use href="#filter"></use></svg>
-        Filter
+        <span class="btn--label">Filter</span>
         <svg class="lexicon-icon"><use href="#caret-bottom"></use></svg>
       </button>
 
       <div class="management-toolbar__search">
         <div class="search">
-          <input class="input__field search__field" type="search" placeholder="Search by name" id="js-search" aria-label="Search by name">
+          <input class="input__field search__field" type="search" placeholder="Search" id="js-search" aria-label="Search">
           <button class="search__submit" aria-label="Search" type="button">
             <svg class="lexicon-icon"><use href="#search"></use></svg>
           </button>
@@ -148,8 +187,8 @@
   </div>
 
   <div class="management-toolbar__results results-bar" id="js-results-bar">
-    <span class="management-toolbar__results-text" id="js-results-text"></span>
-    <button class="management-toolbar__results-clear" type="button" id="js-results-clear"></button>
+    <div class="results-bar__chips" id="js-results-chips"></div>
+    <button class="management-toolbar__results-clear" type="button" id="js-results-clear">Clear</button>
   </div>
 
   <div class="showcase__scroll">
@@ -162,7 +201,8 @@
           <th>Catalog</th>
           <th>Type</th>
           <th>Status</th>
-          <th>Quantity</th>
+          <th>Shippable</th>
+          <th>Modified Date</th>
         </tr>
       </thead>
       <tbody id="js-tbody"></tbody>
@@ -182,6 +222,8 @@
     <ul class="pagination__pages" id="js-pages"></ul>
   </nav>
 </main>
+
+<div class="dropdown filter-menu" id="js-filter-menu" role="dialog" aria-label="Filters" hidden></div>
 
 <div class="sr-only" aria-live="polite" id="js-live"></div>
 
@@ -230,17 +272,30 @@
   // ────────────────────────────────────────────────────────────
   var BASES = ['My AVS sens', 'Brake Fluid', 'Premium Brake Fluid', 'Wear Sensors', 'Brake Pads', 'Premium Brake Pads', 'Brake Rotors', 'Calipers', 'Hoses', 'Timing Belt', 'Master Cylinder', 'Oil Filter', 'Air Filter', 'Spark Plugs', 'Fuel Pump', 'Water Pump', 'Radiator', 'Alternator'];
   var VARIANTS = ['', ' XL', ' Pro'];
-  var CATALOGS = ['Minium', 'Auto Parts', 'Truck Parts', 'Accessories'];
+  var CATALOGS = ['Minium', 'Auto Parts', 'Truck Parts', 'Accessories', 'Motorcycle Parts', 'Safety Equipment'];
   var TYPES = ['Simple', 'Simple', 'Grouped', 'Virtual'];
   var STATUSES = ['Approved', 'Approved', 'Approved', 'Draft', 'Pending'];
   var TONES = { Approved: 'success', Draft: 'secondary', Pending: 'warning', Simple: 'info', Grouped: 'warning', Virtual: 'secondary' };
   var COLORS = [['#e7f0ff', '#2e5aac'], ['#fff4e5', '#b95000'], ['#e9f7ee', '#287d3c'], ['#f4e8ff', '#7a3aa8'], ['#ffe9e9', '#b32a2a']];
+  var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
   function thumb(letter, i) {
     var c = COLORS[i % COLORS.length];
     var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" fill="' + c[0] + '"/>' +
       '<text x="32" y="42" font-family="Helvetica, Arial, sans-serif" font-size="30" font-weight="700" text-anchor="middle" fill="' + c[1] + '">' + letter + '</text></svg>';
     return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+  }
+
+  // Dates are kept as YYYY-MM-DD, the format the Clay date picker uses
+  function isoDaysAgo(days) {
+    var d = new Date();
+    d.setDate(d.getDate() - days);
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+
+  function formatDate(iso) {
+    var p = iso.split('-');
+    return MONTHS[Number(p[1]) - 1] + ' ' + Number(p[2]) + ', ' + p[0];
   }
 
   var products = [];
@@ -250,23 +305,47 @@
       products.push({
         id: i + 1,
         name: BASES[b] + VARIANTS[v],
-        catalog: CATALOGS[i % CATALOGS.length],
+        catalog: CATALOGS[(i * 5) % CATALOGS.length],
         kind: TYPES[i % TYPES.length],
         status: STATUSES[i % STATUSES.length],
-        qty: (i * 37) % 400,
+        shippable: i % 3 ? 'Yes' : 'No',
+        modified: isoDaysAgo((i * 11) % 90),
         image: thumb(BASES[b].charAt(0), b)
       });
     }
   }
 
   // ────────────────────────────────────────────────────────────
+  // Filters — the same set Products offers in Commerce (Catalog,
+  // Product Type, Shippable), plus Status and Modified Date from
+  // the CMS. Selection filters follow the FDS SelectionFilter:
+  // single (radio) or multiple (checkbox), optional autocomplete,
+  // and an Exclude toggle. Date follows DateTimeRangeFilter.
+  // ────────────────────────────────────────────────────────────
+  var FILTERS = [
+    { id: 'catalog', label: 'Catalog', type: 'selection', field: 'catalog', multiple: false, autocomplete: true, items: CATALOGS.slice().sort() },
+    { id: 'modified', label: 'Modified Date', type: 'date', field: 'modified' },
+    { id: 'kind', label: 'Product Type', type: 'selection', field: 'kind', multiple: false, items: ['Grouped', 'Simple', 'Virtual'] },
+    { id: 'shippable', label: 'Shippable', type: 'selection', field: 'shippable', multiple: false, items: ['Yes', 'No'] },
+    { id: 'status', label: 'Status', type: 'selection', field: 'status', multiple: true, items: ['Approved', 'Draft', 'Pending'] }
+  ];
+
+  var PREVIEW_ITEMS_COUNT = 3;
+
+  function filterById(id) {
+    return FILTERS.filter(function (f) { return f.id === id; })[0];
+  }
+
+  // ────────────────────────────────────────────────────────────
   // State
+  //   filters    — id → {items, exclude} or {from, to}; only active ones
   //   selected   — ids, independent of what the view shows
   //   reviewIds  — snapshot taken when "Show selected" opens, so a row
   //                you deselect there stays in place (dimmed) instead
   //                of vanishing under the cursor
+  //   saved      — the search and filters set aside by "Show selected"
   // ────────────────────────────────────────────────────────────
-  var state = { query: '', page: 1, delta: 20, selected: new Set(), reviewIds: null };
+  var state = { query: '', filters: {}, page: 1, delta: 20, selected: new Set(), reviewIds: null, saved: null };
 
   var $ = function (id) { return document.getElementById(id); };
 
@@ -276,12 +355,27 @@
 
   function plural(n, one, many) { return n + ' ' + (n === 1 ? one : many); }
 
-  function matches(p) {
-    return !state.query || p.name.toLowerCase().indexOf(state.query.toLowerCase()) > -1;
+  function passesFilter(p, f, value) {
+    if (f.type === 'date') {
+      return (!value.from || p[f.field] >= value.from) && (!value.to || p[f.field] <= value.to);
+    }
+    var inList = value.items.indexOf(p[f.field]) > -1;
+    return value.exclude ? !inList : inList;
   }
 
-  // Everything the current search (and "Show selected") lets through,
-  // before paging.
+  function matches(p) {
+    if (state.query && p.name.toLowerCase().indexOf(state.query.toLowerCase()) === -1) { return false; }
+    return Object.keys(state.filters).every(function (id) {
+      return passesFilter(p, filterById(id), state.filters[id]);
+    });
+  }
+
+  function hasCriteria() {
+    return !!state.query || Object.keys(state.filters).length > 0;
+  }
+
+  // Everything the current search and filters (and "Show selected")
+  // let through, before paging.
   function results() {
     return products.filter(function (p) {
       return (!state.reviewIds || state.reviewIds.has(p.id)) && matches(p);
@@ -314,9 +408,9 @@
     var tbody = $('js-tbody');
 
     if (!visible.length) {
-      tbody.innerHTML = '<tr class="table__empty"><td colspan="7"><div class="empty-state empty-state--sm">' +
+      tbody.innerHTML = '<tr class="table__empty"><td colspan="8"><div class="empty-state empty-state--sm">' +
         '<p class="empty-state__title">No results found</p>' +
-        '<p class="empty-state__text">Try a different search.</p></div></td></tr>';
+        '<p class="empty-state__text">Try a different search or remove a filter.</p></div></td></tr>';
       return;
     }
 
@@ -332,7 +426,8 @@
         '<td>' + esc(p.catalog) + '</td>' +
         '<td><span class="label label--' + TONES[p.kind] + '">' + p.kind + '</span></td>' +
         '<td><span class="label label--' + TONES[p.status] + '">' + p.status + '</span></td>' +
-        '<td>' + p.qty + '</td>' +
+        '<td>' + p.shippable + '</td>' +
+        '<td>' + formatDate(p.modified) + '</td>' +
       '</tr>';
     }).join('');
   }
@@ -371,34 +466,66 @@
     $('js-sel-count').textContent = plural(total, 'item selected', 'items selected');
 
     var hidden = [];
-    if (outsideResults) { hidden.push(outsideResults + ' outside the search'); }
+    if (outsideResults) { hidden.push(outsideResults + ' not in the results'); }
     if (otherPages) { hidden.push(otherPages + ' on other pages'); }
     $('js-sel-hidden').textContent = hidden.length ? '· ' + hidden.join(', ') : '';
 
     $('js-show-selected').textContent = state.reviewIds ? 'Show all items' : 'Show selected';
   }
 
+  function filterValueLabel(f, value, preview) {
+    if (f.type === 'date') {
+      if (value.from && value.to) { return formatDate(value.from) + ' - ' + formatDate(value.to); }
+      return value.from ? 'From ' + formatDate(value.from) : 'To ' + formatDate(value.to);
+    }
+    var items = preview ? value.items.slice(0, PREVIEW_ITEMS_COUNT) : value.items;
+    return (value.exclude ? '(Exclude) ' : '') + items.join(', ');
+  }
+
+  function chip(opts) {
+    return '<span class="chip' + (opts.className ? ' ' + opts.className : '') + '" role="group">' +
+      '<button class="chip__main" type="button"' + (opts.open ? ' data-chip-open="' + opts.open + '" aria-haspopup="true"' : ' disabled') + '>' +
+        (opts.open ? '<svg class="lexicon-icon"><use href="#caret-bottom"></use></svg>' : '') +
+        '<span class="chip__text">' + opts.html + '</span>' +
+      '</button>' +
+      (opts.more ? '<span class="chip__more" aria-label="and ' + opts.more + ' more.">+' + opts.more + '</span>' : '') +
+      '<button class="chip__close" type="button" data-chip-remove="' + opts.remove + '" aria-label="' + opts.removeLabel + '" title="' + opts.removeLabel + '">' +
+        '<svg class="lexicon-icon"><use href="#times-small"></use></svg>' +
+      '</button>' +
+    '</span>';
+  }
+
   function renderResultsBar(list) {
     var bar = $('js-results-bar');
-    var text;
-    var clear;
+    var show = hasCriteria() || !!state.reviewIds;
+
+    bar.classList.toggle('is-visible', show);
+    if (!show) { return; }
+
+    var html = '<span class="results-bar__count">' + list.length + (list.length === 1 ? ' Result' : ' Results') + ' Found for:</span>';
 
     if (state.reviewIds) {
-      text = state.query
-        ? list.length + ' of ' + plural(state.reviewIds.size, 'selected item', 'selected items') + ' match "' + state.query + '"'
-        : 'Showing ' + plural(state.reviewIds.size, 'selected item', 'selected items');
-      clear = 'Show all items';
-    }
-    else if (state.query) {
-      text = plural(list.length, 'result', 'results') + ' for "' + state.query + '"';
-      clear = 'Clear search';
+      html += chip({ className: 'chip--selected', html: '<strong>Selected items</strong>', remove: 'review', removeLabel: 'Show all items' });
     }
 
-    bar.classList.toggle('is-visible', !!text);
-    if (text) {
-      $('js-results-text').textContent = text;
-      $('js-results-clear').textContent = clear;
+    if (state.query) {
+      html += chip({ html: 'Search: <strong>' + esc(state.query) + '</strong>', remove: 'search', removeLabel: 'Clear Search' });
     }
+
+    FILTERS.forEach(function (f) {
+      var value = state.filters[f.id];
+      if (!value) { return; }
+      var more = f.type === 'selection' ? value.items.length - Math.min(value.items.length, PREVIEW_ITEMS_COUNT) : 0;
+      html += chip({
+        html: esc(f.label) + ': <strong>' + esc(filterValueLabel(f, value, true)) + '</strong>',
+        more: more,
+        open: f.id,
+        remove: f.id,
+        removeLabel: 'Remove Filter'
+      });
+    });
+
+    $('js-results-chips').innerHTML = html;
   }
 
   function renderPagination(list) {
@@ -431,6 +558,10 @@
       : 'Selection cleared');
   }
 
+  function announceResults() {
+    announce(plural(results().length, 'result', 'results'));
+  }
+
   var toastTimer;
   function toast(msg) {
     $('js-toast-text').textContent = msg;
@@ -442,21 +573,31 @@
   // ────────────────────────────────────────────────────────────
   // Selection
   // ────────────────────────────────────────────────────────────
-  // "Show selected" is for reviewing the whole selection, so it sets the
-  // search aside while open (you can still search inside it) and brings
-  // it back when you leave.
-  var savedQuery = '';
 
   function setQuery(q) {
     state.query = q;
     $('js-search').value = q;
   }
 
-  function setShowSelected(on) {
-    if (on && !state.reviewIds) { savedQuery = state.query; setQuery(''); }
-    else if (!on && state.reviewIds) { setQuery(savedQuery); savedQuery = ''; }
+  // "Show selected" is for reviewing the whole selection, so it sets the
+  // search and filters aside while open (you can still search or filter
+  // inside it) and brings them back when you leave.
+  function setShowSelected(on, restore) {
+    if (on && !state.reviewIds) {
+      state.saved = { query: state.query, filters: state.filters };
+      setQuery('');
+      state.filters = {};
+    }
+    else if (!on && state.reviewIds) {
+      if (restore !== false && state.saved) {
+        setQuery(state.saved.query);
+        state.filters = state.saved.filters;
+      }
+      state.saved = null;
+    }
     state.reviewIds = on ? new Set(state.selected) : null;
     state.page = 1;
+    closeFilterMenu();
     render();
     announce(on ? 'Showing ' + plural(state.reviewIds.size, 'selected item', 'selected items') : 'Showing all items');
   }
@@ -490,7 +631,268 @@
   $('js-clear-selection').addEventListener('click', clearSelection);
 
   // ────────────────────────────────────────────────────────────
-  // Search, results bar and pagination
+  // Filter menu
+  //   menu.view   'list' (all filters) or a filter id (its panel)
+  //   menu.chip   true when opened from a results-bar chip: no way
+  //               back to the list, like FilterResume in the FDS
+  //   menu.draft  the panel's unsaved values
+  // ────────────────────────────────────────────────────────────
+  var menu = { anchor: null, view: 'list', chip: false, listQuery: '', draft: null, optionQuery: '' };
+
+  function draftFor(f) {
+    var value = state.filters[f.id];
+    if (f.type === 'date') { return { from: value ? value.from : '', to: value ? value.to : '' }; }
+    return { items: value ? value.items.slice() : [], exclude: value ? value.exclude : false };
+  }
+
+  function sameItems(a, b) {
+    return a.length === b.length && a.every(function (x) { return b.indexOf(x) > -1; });
+  }
+
+  // Mirrors the FDS: Add Filter when the filter isn't active, Show
+  // Results once an active filter changes, Delete Filter when every
+  // value has been removed; disabled when there's nothing to apply.
+  function panelAction(f) {
+    var active = state.filters[f.id];
+    var d = menu.draft;
+    var empty = f.type === 'date' ? !d.from && !d.to : !d.items.length;
+    var invalid = f.type === 'date' && d.from && d.to && d.from > d.to;
+
+    if (!active) { return { label: 'Add Filter', disabled: empty || invalid }; }
+    if (empty) { return { label: 'Delete Filter', disabled: false }; }
+
+    var changed = f.type === 'date'
+      ? d.from !== active.from || d.to !== active.to
+      : !sameItems(d.items, active.items) || d.exclude !== active.exclude;
+
+    return { label: 'Show Results', disabled: !changed || invalid };
+  }
+
+  function renderListView() {
+    var q = menu.listQuery.toLowerCase();
+    var found = FILTERS.filter(function (f) { return f.label.toLowerCase().indexOf(q) > -1; });
+
+    return '<div class="filter-menu__header">Filters</div>' +
+      '<div class="filter-menu__section"><input class="input__field" type="text" placeholder="Search" aria-label="Search filters" data-menu-input="list" value="' + esc(menu.listQuery) + '"></div>' +
+      '<div class="filter-menu__divider"></div>' +
+      (found.length
+        ? '<ul class="filter-menu__list">' + found.map(function (f) {
+            return '<li><button class="dropdown__item" type="button" data-filter-open="' + f.id + '"><span class="dropdown__item-text">' + esc(f.label) + '</span></button></li>';
+          }).join('') + '</ul>'
+        : '<p class="filter-menu__caption">No filters were found.</p>');
+  }
+
+  function renderSelectionPanel(f) {
+    var d = menu.draft;
+    var q = menu.optionQuery.toLowerCase();
+    var options = f.items.filter(function (item) { return item.toLowerCase().indexOf(q) > -1; });
+    var html = '';
+
+    if (f.autocomplete) {
+      html += '<div class="filter-menu__section"><input class="input__field" type="text" placeholder="Search" aria-label="Search ' + esc(f.label) + '" data-menu-input="options" value="' + esc(menu.optionQuery) + '"></div>';
+      if (d.items.length) {
+        html += '<div class="filter-menu__section filter-menu__chosen">' + d.items.map(function (item) {
+          return '<span class="label label--secondary">' + esc(item) +
+            '<button class="label__close" type="button" data-option-remove="' + esc(item) + '" aria-label="Remove ' + esc(item) + '"><svg class="lexicon-icon"><use href="#times-small"></use></svg></button></span>';
+        }).join('') + '</div>';
+      }
+    }
+
+    html += '<div class="filter-menu__section filter-menu__row">' +
+      '<span>Exclude</span>' +
+      '<label class="toggle"><input type="checkbox" role="switch" class="toggle__input" data-exclude' + (d.exclude ? ' checked' : '') + ' aria-label="Exclude">' +
+      '<span class="toggle__track"><span class="toggle__dot"></span></span></label>' +
+    '</div><div class="filter-menu__divider"></div>';
+
+    if (!options.length) {
+      return html + '<p class="filter-menu__caption">No items were found.</p>';
+    }
+
+    return html + '<ul class="filter-menu__list" role="group" aria-label="' + esc(f.label) + '">' + options.map(function (item) {
+      var on = d.items.indexOf(item) > -1;
+      var control = f.multiple
+        ? '<label class="checkbox"><input type="checkbox" class="checkbox__input" data-option="' + esc(item) + '"' + (on ? ' checked' : '') + '>' +
+            '<span class="checkbox__box"><svg class="checkbox__icon checkbox__icon--check"><use href="#check-small"></use></svg></span>' +
+            '<span class="checkbox__label">' + esc(item) + '</span></label>'
+        : '<label class="radio"><input type="radio" name="opt-' + f.id + '" class="radio__input" data-option="' + esc(item) + '"' + (on ? ' checked' : '') + '>' +
+            '<span class="radio__box"></span><span class="radio__label">' + esc(item) + '</span></label>';
+      return '<li class="filter-menu__option">' + control + '</li>';
+    }).join('') + '</ul>';
+  }
+
+  function renderDatePanel(f) {
+    var d = menu.draft;
+    var invalid = d.from && d.to && d.from > d.to;
+    return '<div class="filter-menu__section">' +
+      '<div class="filter-menu__field"><label for="js-date-from">From</label><input class="input__field" type="date" id="js-date-from" data-date="from" value="' + d.from + '"' + (invalid ? ' aria-invalid="true"' : '') + '></div>' +
+      '<div class="filter-menu__field"><label for="js-date-to">To</label><input class="input__field" type="date" id="js-date-to" data-date="to" value="' + d.to + '"' + (invalid ? ' aria-invalid="true"' : '') + '></div>' +
+      (invalid ? '<p class="filter-menu__error" role="alert"><svg class="lexicon-icon"><use href="#exclamation-full"></use></svg>Date range is invalid. "From" must be before "to".</p>' : '') +
+    '</div>';
+  }
+
+  function renderFilterView() {
+    var f = filterById(menu.view);
+    var action = panelAction(f);
+    var header = menu.chip
+      ? '<div class="filter-menu__header">' + esc(f.label) + '</div>'
+      : '<div class="filter-menu__header"><button class="btn btn--borderless btn--xs btn--icon" type="button" data-filter-back aria-label="Back"><svg class="lexicon-icon"><use href="#angle-left"></use></svg></button>' + esc(f.label) + '</div>';
+
+    return header +
+      (f.type === 'date' ? renderDatePanel(f) : renderSelectionPanel(f)) +
+      '<div class="filter-menu__footer"><button class="btn btn--primary btn--sm" type="button" data-filter-apply' + (action.disabled ? ' disabled' : '') + '>' + action.label + '</button></div>';
+  }
+
+  function renderFilterMenu() {
+    var el = $('js-filter-menu');
+    var focused = document.activeElement;
+    var keep = focused && el.contains(focused) ? (focused.dataset.menuInput || focused.dataset.date || null) : null;
+    var caret = keep && focused.selectionStart;
+
+    el.innerHTML = menu.view === 'list' ? renderListView() : renderFilterView();
+
+    // Re-rendering replaces the inputs, so put the caret back where it was
+    if (keep) {
+      var again = el.querySelector('[data-menu-input="' + keep + '"], [data-date="' + keep + '"]');
+      if (again) {
+        again.focus();
+        if (typeof caret === 'number' && again.setSelectionRange) { again.setSelectionRange(caret, caret); }
+      }
+    }
+    placeFilterMenu();
+  }
+
+  function placeFilterMenu() {
+    var el = $('js-filter-menu');
+    if (el.hidden || !menu.anchor) { return; }
+    var r = menu.anchor.getBoundingClientRect();
+    var left = Math.max(8, Math.min(r.left, window.innerWidth - el.offsetWidth - 8));
+    var top = r.bottom + 4;
+    if (top + el.offsetHeight > window.innerHeight - 8 && r.top - el.offsetHeight - 4 > 8) { top = r.top - el.offsetHeight - 4; }
+    el.style.left = left + 'px';
+    el.style.top = top + 'px';
+  }
+
+  function openFilterMenu(anchor, view, fromChip) {
+    menu.anchor = anchor;
+    menu.chip = !!fromChip;
+    menu.listQuery = '';
+    setMenuView(view);
+    $('js-filter-menu').hidden = false;
+    anchor.setAttribute('aria-expanded', 'true');
+    anchor.closest('.chip') && anchor.closest('.chip').classList.add('is-open');
+    renderFilterMenu();
+    var first = $('js-filter-menu').querySelector('input, button:not([disabled])');
+    if (first) { first.focus(); }
+  }
+
+  function setMenuView(view) {
+    menu.view = view;
+    menu.optionQuery = '';
+    menu.draft = view === 'list' ? null : draftFor(filterById(view));
+  }
+
+  function closeFilterMenu(returnFocus) {
+    var el = $('js-filter-menu');
+    if (el.hidden) { return; }
+    el.hidden = true;
+    if (menu.anchor) {
+      menu.anchor.setAttribute('aria-expanded', 'false');
+      if (returnFocus && document.body.contains(menu.anchor)) { menu.anchor.focus(); }
+    }
+    document.querySelectorAll('.chip.is-open').forEach(function (c) { c.classList.remove('is-open'); });
+    menu.anchor = null;
+  }
+
+  function applyFilter() {
+    var f = filterById(menu.view);
+    var d = menu.draft;
+    var empty = f.type === 'date' ? !d.from && !d.to : !d.items.length;
+
+    if (empty) { delete state.filters[f.id]; }
+    else { state.filters[f.id] = f.type === 'date' ? { from: d.from, to: d.to } : { items: d.items.slice(), exclude: d.exclude }; }
+
+    state.filters = Object.assign({}, state.filters);
+    state.page = 1;
+    closeFilterMenu();
+    render();
+    announceResults();
+    $('js-filter-btn').focus();
+  }
+
+  $('js-filter-btn').addEventListener('click', function (e) {
+    e.stopPropagation();
+    if (!$('js-filter-menu').hidden && menu.anchor === this) { closeFilterMenu(); return; }
+    closeFilterMenu();
+    openFilterMenu(this, 'list', false);
+  });
+
+  var menuEl = $('js-filter-menu');
+
+  menuEl.addEventListener('click', function (e) {
+    var open = e.target.closest('[data-filter-open]');
+    if (open) { setMenuView(open.dataset.filterOpen); renderFilterMenu(); var first = menuEl.querySelector('input, [data-filter-apply]'); if (first) { first.focus(); } return; }
+
+    if (e.target.closest('[data-filter-back]')) { setMenuView('list'); renderFilterMenu(); return; }
+
+    var removeOpt = e.target.closest('[data-option-remove]');
+    if (removeOpt) {
+      menu.draft.items = menu.draft.items.filter(function (x) { return x !== removeOpt.dataset.optionRemove; });
+      renderFilterMenu();
+      return;
+    }
+
+    if (e.target.closest('[data-filter-apply]')) { applyFilter(); }
+  });
+
+  menuEl.addEventListener('input', function (e) {
+    var t = e.target;
+    if (t.dataset.menuInput === 'list') { menu.listQuery = t.value; renderFilterMenu(); }
+    else if (t.dataset.menuInput === 'options') { menu.optionQuery = t.value; renderFilterMenu(); }
+    else if (t.dataset.date) { menu.draft[t.dataset.date] = t.value; renderFilterMenu(); }
+  });
+
+  menuEl.addEventListener('change', function (e) {
+    var t = e.target;
+    var f = menu.view !== 'list' && filterById(menu.view);
+    if (!f) { return; }
+
+    if (t.hasAttribute('data-exclude')) { menu.draft.exclude = t.checked; }
+    else if (t.dataset.option !== undefined) {
+      var item = t.dataset.option;
+      if (f.multiple) {
+        menu.draft.items = t.checked
+          ? menu.draft.items.concat(item)
+          : menu.draft.items.filter(function (x) { return x !== item; });
+      }
+      else {
+        menu.draft.items = [item];
+      }
+    }
+    else { return; }
+    renderFilterMenu();
+    var same = menuEl.querySelector('[data-option="' + (t.dataset.option || '') + '"]') || menuEl.querySelector('[data-exclude]');
+    if (same) { same.focus(); }
+  });
+
+  // Enter applies, like the FDS submit button
+  menuEl.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && menu.view !== 'list' && e.target.tagName === 'INPUT') {
+      var apply = menuEl.querySelector('[data-filter-apply]');
+      if (apply && !apply.disabled) { e.preventDefault(); applyFilter(); }
+    }
+  });
+
+  document.addEventListener('mousedown', function (e) {
+    if (menuEl.hidden) { return; }
+    if (menuEl.contains(e.target) || (menu.anchor && menu.anchor.contains(e.target))) { return; }
+    closeFilterMenu();
+  });
+
+  window.addEventListener('resize', placeFilterMenu);
+  window.addEventListener('scroll', placeFilterMenu, true);
+
+  // ────────────────────────────────────────────────────────────
+  // Search and results bar
   // ────────────────────────────────────────────────────────────
   var searchTimer;
   $('js-search').addEventListener('input', function (e) {
@@ -499,21 +901,52 @@
       state.query = e.target.value.trim();
       state.page = 1;
       render();
-      announce(plural(results().length, 'result', 'results'));
+      announceResults();
     }, 200);
   });
 
   function clearSearch() {
-    $('js-search').value = '';
-    state.query = '';
+    setQuery('');
     state.page = 1;
     render();
   }
 
+  $('js-results-chips').addEventListener('click', function (e) {
+    var open = e.target.closest('[data-chip-open]');
+    if (open) {
+      e.stopPropagation();
+      var wasOpen = !menuEl.hidden && menu.anchor === open;
+      closeFilterMenu();
+      if (!wasOpen) { openFilterMenu(open, open.dataset.chipOpen, true); }
+      return;
+    }
 
-  // Clearing the search never touches the selection, and vice versa
+    var remove = e.target.closest('[data-chip-remove]');
+    if (!remove) { return; }
+    var what = remove.dataset.chipRemove;
+    closeFilterMenu();
+    if (what === 'review') { setShowSelected(false); return; }
+    if (what === 'search') { clearSearch(); }
+    else {
+      delete state.filters[what];
+      state.filters = Object.assign({}, state.filters);
+      state.page = 1;
+      render();
+    }
+    announceResults();
+    $('js-search').focus();
+  });
+
+  // Clear resets the search and the filters, never the selection
   $('js-results-clear').addEventListener('click', function () {
-    if (state.reviewIds) { setShowSelected(false); } else { clearSearch(); }
+    closeFilterMenu();
+    if (state.reviewIds) { setShowSelected(false, false); }
+    setQuery('');
+    state.filters = {};
+    state.page = 1;
+    render();
+    announceResults();
+    $('js-search').focus();
   });
 
   $('js-pages').addEventListener('click', function (e) {
@@ -576,7 +1009,8 @@
 
   document.addEventListener('keydown', function (e) {
     if (e.key !== 'Escape') { return; }
-    if ($('js-modal').style.display === '') { closeModal(); }
+    if ($('js-modal').style.display === '') { closeModal(); return; }
+    if (!menuEl.hidden) { closeFilterMenu(true); return; }
     if (!$('js-more-menu').hidden) { toggleMore(false); $('js-more').focus(); }
   });
 
