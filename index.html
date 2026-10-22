@@ -53,17 +53,17 @@
     .results-bar { display: none; background: var(--color-white); border-bottom: 1px solid var(--color-secondary-l3); gap: var(--spacing-5); }
     .results-bar.is-visible { display: flex; }
     .results-bar__chips { align-items: center; display: flex; flex-wrap: wrap; gap: var(--spacing-3); min-width: 0; }
-    .results-bar__count { color: var(--color-dark); white-space: nowrap; }
+    .results-bar__count { color: var(--color-secondary); white-space: nowrap; }
     .results-bar .management-toolbar__results-clear { color: var(--color-primary); }
 
-    .chip { align-items: center; background: var(--color-white); border: 1px solid var(--color-secondary-l2); border-radius: var(--rounded-sm); color: var(--color-secondary); display: inline-flex; font-size: var(--font-size-sm); height: 28px; max-width: 360px; }
+    .chip { align-items: center; background: var(--color-white); border: 1px solid var(--color-secondary-l2); border-radius: var(--rounded-sm); color: var(--color-secondary); display: inline-flex; font-size: var(--font-size-sm); height: 32px; max-width: 360px; }
     .chip.is-open { border-color: var(--color-primary); box-shadow: var(--focus-ring); }
-    .chip__main { align-items: center; appearance: none; background: none; border: 0; color: inherit; cursor: pointer; display: inline-flex; font: inherit; gap: var(--spacing-2); height: 100%; min-width: 0; padding: 0 var(--spacing-2) 0 var(--spacing-3); }
+    .chip__main { align-items: center; appearance: none; background: none; border: 0; color: inherit; cursor: pointer; display: inline-flex; font: inherit; gap: var(--spacing-2); height: 100%; min-width: 0; padding: 0 var(--spacing-3) 0 var(--spacing-4); }
     .chip__main:disabled { cursor: default; }
     .chip__text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .chip__text strong { color: var(--color-dark); }
     .chip__more { background: var(--color-light); border-radius: var(--rounded-sm); color: var(--color-dark); font-size: var(--font-size-xs); font-weight: var(--font-weight-bold); margin-right: var(--spacing-1); padding: 0 var(--spacing-2); }
-    .chip__close { align-items: center; appearance: none; background: none; border: 0; border-left: 1px solid var(--color-secondary-l3); color: inherit; cursor: pointer; display: inline-flex; height: 100%; justify-content: center; width: 28px; }
+    .chip__close { align-items: center; appearance: none; background: none; border: 0; border-left: 1px solid var(--color-secondary-l3); color: inherit; cursor: pointer; display: inline-flex; height: 100%; justify-content: center; width: 32px; }
     .chip__close:hover, .chip__main:hover:not(:disabled) { color: var(--color-dark); }
 
     /* ── Filter menu ───────────────────────────────────────────────
