@@ -65,7 +65,6 @@
     .chip__more { background: var(--color-light); border-radius: var(--rounded-sm); color: var(--color-dark); font-size: var(--font-size-xs); font-weight: var(--font-weight-bold); margin-right: var(--spacing-1); padding: 0 var(--spacing-2); }
     .chip__close { align-items: center; appearance: none; background: none; border: 0; border-left: 1px solid var(--color-secondary-l3); color: inherit; cursor: pointer; display: inline-flex; height: 100%; justify-content: center; width: 28px; }
     .chip__close:hover, .chip__main:hover:not(:disabled) { color: var(--color-dark); }
-    .chip--selected { border-color: var(--color-primary-l1); color: var(--color-primary); }
 
     /* ── Filter menu ───────────────────────────────────────────────
        One floating dropdown for the toolbar Filter button and for
@@ -90,7 +89,6 @@
     .table__cell--image { width: 72px; }
     .table__thumb { border-radius: var(--rounded-sm); display: block; height: 40px; width: 40px; }
     .table__empty td { padding: var(--spacing-9); text-align: center; }
-    .table tbody tr.is-leaving td { opacity: 0.55; }
 
     .pagination select { font: inherit; padding: var(--spacing-1) var(--spacing-2); }
 
@@ -118,7 +116,7 @@
 <main class="showcase">
   <h1>Products — search and filter while items are selected</h1>
   <p class="lead">
-    LPD-109703 — the search and the filters no longer disappear when you select items. Select a few products, search or filter for something else and keep selecting: the selection bar tells you how many are selected and how many of them you can't see right now. "Show selected" lists the whole selection on its own, and Delete warns you before touching items that aren't on screen.
+    LPD-109703 — the search and the filters no longer disappear when you select items: the selection gets its own bar under the toolbar. Select a few products, search or filter for something else and keep selecting. When you delete and part of the selection isn't on screen, the confirmation tells you how many entries that is.
   </p>
 
   <span class="showcase__label">Products</span>
@@ -157,11 +155,9 @@
   <div class="management-toolbar management-toolbar--active selection-bar" id="js-selection-bar" role="region" aria-label="Selection">
     <div class="management-toolbar__bar">
       <span class="selection-bar__count" id="js-sel-count"></span>
-      <span class="selection-bar__hidden" id="js-sel-hidden"></span>
 
       <span class="selection-bar__links">
-        <button class="btn btn--link btn--sm" type="button" id="js-show-selected"></button>
-        <button class="btn btn--link btn--sm" type="button" id="js-clear-selection">Clear selection</button>
+        <button class="btn btn--link btn--sm" type="button" id="js-clear-selection">Clear</button>
       </span>
 
       <span class="selection-bar__actions">
@@ -245,20 +241,17 @@
       </button>
     </div>
     <div class="modal__body">
-      <p style="margin-top: 0">This can't be undone.</p>
+      <p style="margin: 0 0 var(--spacing-5)">Are you sure you want to delete the selected entries? They will be deleted immediately.</p>
       <div class="alert alert--warning" id="js-modal-hidden" style="margin-bottom: 0">
         <div class="alert__content">
           <svg class="lexicon-icon"><use href="#warning-full"></use></svg>
           <p class="alert__text" id="js-modal-hidden-text"></p>
         </div>
-        <div class="alert__actions">
-          <button class="btn btn--secondary btn--sm" type="button" id="js-modal-review">Review selection</button>
-        </div>
       </div>
     </div>
     <div class="modal__footer">
       <button class="btn btn--secondary" type="button" data-close>Cancel</button>
-      <button class="btn btn--primary btn--danger" type="button" id="js-modal-confirm">Delete</button>
+      <button class="btn btn--primary" type="button" id="js-modal-confirm">Delete</button>
     </div>
   </div>
 </div>
@@ -340,12 +333,8 @@
   // State
   //   filters    — id → {items, exclude} or {from, to}; only active ones
   //   selected   — ids, independent of what the view shows
-  //   reviewIds  — snapshot taken when "Show selected" opens, so a row
-  //                you deselect there stays in place (dimmed) instead
-  //                of vanishing under the cursor
-  //   saved      — the search and filters set aside by "Show selected"
   // ────────────────────────────────────────────────────────────
-  var state = { query: '', filters: {}, page: 1, delta: 20, selected: new Set(), reviewIds: null, saved: null };
+  var state = { query: '', filters: {}, page: 1, delta: 20, selected: new Set() };
 
   var $ = function (id) { return document.getElementById(id); };
 
@@ -374,11 +363,10 @@
     return !!state.query || Object.keys(state.filters).length > 0;
   }
 
-  // Everything the current search and filters (and "Show selected")
-  // let through, before paging.
+  // Everything the current search and filters let through, before paging.
   function results() {
     return products.filter(function (p) {
-      return (!state.reviewIds || state.reviewIds.has(p.id)) && matches(p);
+      return matches(p);
     });
   }
 
@@ -399,7 +387,7 @@
 
     renderRows(visible);
     renderPageCheck(visible);
-    renderSelectionBar(list, visible);
+    renderSelectionBar();
     renderResultsBar(list);
     renderPagination(list);
   }
@@ -416,7 +404,7 @@
 
     tbody.innerHTML = visible.map(function (p) {
       var on = state.selected.has(p.id);
-      return '<tr class="' + (on ? 'is-selected' : (state.reviewIds ? 'is-leaving' : '')) + '">' +
+      return '<tr class="' + (on ? 'is-selected' : '') + '">' +
         '<td class="table__cell--gutter"><label class="checkbox">' +
           '<input type="checkbox" class="checkbox__input" data-id="' + p.id + '"' + (on ? ' checked' : '') + ' aria-label="Select ' + esc(p.name) + '">' +
           '<span class="checkbox__box"><svg class="checkbox__icon checkbox__icon--check"><use href="#check-small"></use></svg></span>' +
@@ -446,32 +434,13 @@
     input.disabled = !visible.length;
   }
 
-  function renderSelectionBar(list, visible) {
+  function renderSelectionBar() {
     var total = state.selected.size;
-    var bar = $('js-selection-bar');
 
-    bar.classList.toggle('is-visible', total > 0);
-    if (!total) { return; }
-
-    var visibleIds = new Set(visible.map(function (p) { return p.id; }));
-    var inResults = new Set(list.map(function (p) { return p.id; }));
-    var outsideResults = 0;
-    var otherPages = 0;
-
-    state.selected.forEach(function (id) {
-      if (visibleIds.has(id)) { return; }
-      if (inResults.has(id)) { otherPages++; } else { outsideResults++; }
-    });
-
-    $('js-sel-count').textContent = plural(total, 'item selected', 'items selected');
-
-    var hidden = [];
-    if (outsideResults) { hidden.push(outsideResults + ' not in the results'); }
-    if (otherPages) { hidden.push(otherPages + ' on other pages'); }
-    $('js-sel-hidden').textContent = hidden.length ? '· ' + hidden.join(', ') : '';
-
-    $('js-show-selected').textContent = state.reviewIds ? 'Show all items' : 'Show selected';
+    $('js-selection-bar').classList.toggle('is-visible', total > 0);
+    if (total) { $('js-sel-count').textContent = total + (total === 1 ? ' Item Selected' : ' Items Selected'); }
   }
+
 
   function filterValueLabel(f, value, preview) {
     if (f.type === 'date') {
@@ -497,16 +466,13 @@
 
   function renderResultsBar(list) {
     var bar = $('js-results-bar');
-    var show = hasCriteria() || !!state.reviewIds;
+    var show = hasCriteria();
 
     bar.classList.toggle('is-visible', show);
     if (!show) { return; }
 
     var html = '<span class="results-bar__count">' + list.length + (list.length === 1 ? ' Result' : ' Results') + ' Found for:</span>';
 
-    if (state.reviewIds) {
-      html += chip({ className: 'chip--selected', html: '<strong>Selected items</strong>', remove: 'review', removeLabel: 'Show all items' });
-    }
 
     if (state.query) {
       html += chip({ html: 'Search: <strong>' + esc(state.query) + '</strong>', remove: 'search', removeLabel: 'Clear Search' });
@@ -554,7 +520,7 @@
 
   function announceSelection() {
     announce(state.selected.size
-      ? plural(state.selected.size, 'item selected', 'items selected')
+      ? state.selected.size + (state.selected.size === 1 ? ' item selected' : ' items selected')
       : 'Selection cleared');
   }
 
@@ -579,32 +545,8 @@
     $('js-search').value = q;
   }
 
-  // "Show selected" is for reviewing the whole selection, so it sets the
-  // search and filters aside while open (you can still search or filter
-  // inside it) and brings them back when you leave.
-  function setShowSelected(on, restore) {
-    if (on && !state.reviewIds) {
-      state.saved = { query: state.query, filters: state.filters };
-      setQuery('');
-      state.filters = {};
-    }
-    else if (!on && state.reviewIds) {
-      if (restore !== false && state.saved) {
-        setQuery(state.saved.query);
-        state.filters = state.saved.filters;
-      }
-      state.saved = null;
-    }
-    state.reviewIds = on ? new Set(state.selected) : null;
-    state.page = 1;
-    closeFilterMenu();
-    render();
-    announce(on ? 'Showing ' + plural(state.reviewIds.size, 'selected item', 'selected items') : 'Showing all items');
-  }
-
   function clearSelection() {
     state.selected.clear();
-    if (state.reviewIds) { setShowSelected(false); return announceSelection(); }
     render();
     announceSelection();
   }
@@ -627,7 +569,6 @@
     announceSelection();
   });
 
-  $('js-show-selected').addEventListener('click', function () { setShowSelected(!state.reviewIds); });
   $('js-clear-selection').addEventListener('click', clearSelection);
 
   // ────────────────────────────────────────────────────────────
@@ -925,7 +866,6 @@
     if (!remove) { return; }
     var what = remove.dataset.chipRemove;
     closeFilterMenu();
-    if (what === 'review') { setShowSelected(false); return; }
     if (what === 'search') { clearSearch(); }
     else {
       delete state.filters[what];
@@ -940,7 +880,6 @@
   // Clear resets the search and the filters, never the selection
   $('js-results-clear').addEventListener('click', function () {
     closeFilterMenu();
-    if (state.reviewIds) { setShowSelected(false, false); }
     setQuery('');
     state.filters = {};
     state.page = 1;
@@ -979,16 +918,18 @@
   }
 
   var lastFocus;
+  // Delete always applies to the whole selection. When part of it isn't
+  // on the current page, the confirmation says so before anything is lost.
   function openDelete() {
     var total = state.selected.size;
     var hidden = hiddenSelectedCount();
+    var where = hasCriteria() ? ' not shown in the current results' : ' on other pages';
 
-    $('js-modal-title').textContent = 'Delete ' + plural(total, 'product', 'products') + '?';
-    $('js-modal-confirm').textContent = 'Delete ' + plural(total, 'product', 'products');
+    $('js-modal-title').textContent = 'Delete Entries';
     $('js-modal-hidden').style.display = hidden ? '' : 'none';
-    $('js-modal-hidden-text').textContent = hidden === total
-      ? (total === 1 ? 'This product isn\'t' : 'None of these products are') + ' visible right now.'
-      : hidden + ' of them ' + (hidden === 1 ? 'isn\'t' : 'aren\'t') + ' visible right now.';
+    $('js-modal-hidden-text').innerHTML = '<strong>Warning:</strong> ' + (hidden === total
+      ? (total === 1 ? 'The selected entry is' : 'All ' + total + ' selected entries are') + where + ' and will also be deleted.'
+      : hidden + ' of the ' + total + ' selected entries ' + (hidden === 1 ? 'is' : 'are') + where + ' and will also be deleted.');
 
     lastFocus = document.activeElement;
     $('js-modal').style.display = '';
@@ -1014,16 +955,11 @@
     if (!$('js-more-menu').hidden) { toggleMore(false); $('js-more').focus(); }
   });
 
-  $('js-modal-review').addEventListener('click', function () {
-    closeModal();
-    setShowSelected(true);
-  });
 
   $('js-modal-confirm').addEventListener('click', function () {
     var n = state.selected.size;
     products = products.filter(function (p) { return !state.selected.has(p.id); });
     state.selected.clear();
-    if (state.reviewIds) { setShowSelected(false); }
     closeModal();
     render();
     toast(plural(n, 'product', 'products') + ' deleted.');
